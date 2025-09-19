@@ -7,6 +7,10 @@ import random
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Set, Tuple
 
+import random
+from dataclasses import dataclass
+from typing import Dict, Iterator, List, Optional, Tuple
+
 import pygame
 
 from .assets import AssetManager
@@ -34,6 +38,9 @@ TERRAIN_TO_SPRITE: Dict[str, str] = {
 
 class TileMap:
     """Simple isometric tile map with layered noise generation."""
+
+    """Simple isometric tile map with naive random generation."""
+
 
     def __init__(self, width: int, height: int) -> None:
         self.width = width
@@ -97,6 +104,26 @@ class TileMap:
         if height_value > 0.9 and moisture_value > 0.65:
             return "grass"
         return "rock"
+
+
+    def generate(self, seed: int | None = None) -> None:
+        rng = random.Random(seed)
+        for y in range(self.height):
+            for x in range(self.width):
+                roll = rng.random()
+                if roll < 0.65:
+                    terrain = "grass"
+                elif roll < 0.75:
+                    terrain = "dirt"
+                elif roll < 0.85:
+                    terrain = "sand"
+                elif roll < 0.95:
+                    terrain = "rock"
+                else:
+                    terrain = "water"
+                walkable = terrain != "water"
+                resource = self._choose_resource_for_terrain(terrain, rng)
+                self.tiles[y][x] = MapTile(terrain=terrain, resource=resource, walkable=walkable)
 
     def _choose_resource_for_terrain(self, terrain: str, rng: random.Random) -> Optional[str]:
         if terrain == "grass" and rng.random() < 0.1:
