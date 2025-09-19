@@ -6,7 +6,9 @@ import os
 from pathlib import Path
 from typing import Iterable
 
-MERGE_CONFLICT_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
+CONFLICT_START_PREFIX = "<<<<<<< "
+CONFLICT_END_PREFIX = ">>>>>>> "
+CONFLICT_MID_LINE = "======="
 
 
 def _iter_candidate_files(root: Path) -> Iterable[Path]:
@@ -55,15 +57,31 @@ def ensure_no_merge_conflicts() -> None:
     offending: list[str] = []
     for file_path in _iter_candidate_files(root):
         try:
-            content = file_path.read_text(encoding="utf-8")
+            with file_path.open(encoding="utf-8") as handle:
+                if _file_contains_conflict_marker(handle):
+                    offending.append(str(file_path.relative_to(root)))
         except UnicodeDecodeError:
-            content = file_path.read_text(encoding="utf-8", errors="ignore")
-        if any(marker in content for marker in MERGE_CONFLICT_MARKERS):
-            offending.append(str(file_path.relative_to(root)))
+            with file_path.open(encoding="utf-8", errors="ignore") as handle:
+                if _file_contains_conflict_marker(handle):
+                    offending.append(str(file_path.relative_to(root)))
 
     if offending:
         joined = "\n - ".join(offending)
         raise RuntimeError(
             "Merge conflict markers detected in the repository:\n - " + joined
         )
+
+
+def _file_contains_conflict_marker(lines: Iterable[str]) -> bool:
+    """Return ``True`` if any Git conflict markers are present in ``lines``."""
+
+    for raw_line in lines:
+        stripped = raw_line.rstrip("\n\r")
+        if stripped.startswith(CONFLICT_START_PREFIX):
+            return True
+        if stripped.startswith(CONFLICT_END_PREFIX):
+            return True
+        if stripped.strip() == CONFLICT_MID_LINE:
+            return True
+    return False
 
