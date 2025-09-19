@@ -6,12 +6,14 @@ functions gracefully fall back to procedural placeholders so the game remains
 fully playable. Surfaces are cached so that expensive scaling operations only
 run once per unique sprite request.
 """
+"""Generate simple placeholder sprites for the MVP."""
 
 from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 import pygame
 
@@ -157,6 +159,9 @@ def _draw_placeholder_label(surface: pygame.Surface, text: str) -> None:
 
 
 def _generate_tile_placeholder(key: str) -> pygame.Surface:
+
+@lru_cache(maxsize=None)
+def make_tile_surface(key: str) -> pygame.Surface:
     color = TERRAIN_COLORS.get(key, (200, 200, 200))
     surface = pygame.Surface((TILE_WIDTH, TILE_HEIGHT), pygame.SRCALPHA)
     points = [
@@ -223,6 +228,13 @@ def make_resource_surface(key: str) -> pygame.Surface:
         target = (int(TILE_WIDTH * 0.9), int(TILE_HEIGHT * 2.2))
         surface = _scale(surface, target)
     return _with_shadow(surface, shadow_alpha=70)
+@lru_cache(maxsize=None)
+def make_resource_surface(key: str) -> pygame.Surface:
+    color = RESOURCE_COLORS.get(key, (200, 80, 120))
+    surface = pygame.Surface((TILE_WIDTH, TILE_HEIGHT), pygame.SRCALPHA)
+    pygame.draw.circle(surface, color, (TILE_WIDTH // 2, TILE_HEIGHT // 2), TILE_HEIGHT // 2)
+    pygame.draw.circle(surface, (0, 0, 0), (TILE_WIDTH // 2, TILE_HEIGHT // 2), TILE_HEIGHT // 2, 2)
+    return surface
 
 
 @lru_cache(maxsize=None)
@@ -231,3 +243,10 @@ def make_entity_surface(key: str) -> pygame.Surface:
     if surface is None:
         surface = _generate_entity_placeholder(key)
     return _with_shadow(surface, shadow_alpha=90)
+    color = ENTITY_COLORS.get(key, (180, 180, 180))
+    width = TILE_WIDTH // 2
+    height = int(TILE_HEIGHT * 1.5)
+    surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    pygame.draw.ellipse(surface, color, (0, height // 3, width, height // 1.3))
+    pygame.draw.ellipse(surface, (0, 0, 0), (0, height // 3, width, height // 1.3), 2)
+    return surface

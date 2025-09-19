@@ -93,6 +93,9 @@ class TileMap:
                     res_rect = resource_sprite.get_rect()
                     res_rect.midbottom = (draw_x + TILE_WIDTH // 2, draw_y + TILE_HEIGHT)
                     surface.blit(resource_sprite, res_rect)
+                    res_x = draw_x
+                    res_y = draw_y - TILE_HEIGHT // 2
+                    surface.blit(resource_sprite, (res_x, res_y))
 
     def iter_tiles(self) -> Iterable[Tuple[int, int, Tile]]:
         for y in range(self.height):
