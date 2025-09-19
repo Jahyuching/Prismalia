@@ -6,14 +6,18 @@ functions gracefully fall back to procedural placeholders so the game remains
 fully playable. Surfaces are cached so that expensive scaling operations only
 run once per unique sprite request.
 """
+
 """Generate simple placeholder sprites for the MVP."""
+
 
 from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+
 from typing import Dict, Tuple
+
 
 import pygame
 
@@ -160,8 +164,10 @@ def _draw_placeholder_label(surface: pygame.Surface, text: str) -> None:
 
 def _generate_tile_placeholder(key: str) -> pygame.Surface:
 
+
 @lru_cache(maxsize=None)
 def make_tile_surface(key: str) -> pygame.Surface:
+
     color = TERRAIN_COLORS.get(key, (200, 200, 200))
     surface = pygame.Surface((TILE_WIDTH, TILE_HEIGHT), pygame.SRCALPHA)
     points = [
@@ -211,6 +217,55 @@ def _with_shadow(sprite: pygame.Surface, shadow_alpha: int = 80) -> pygame.Surfa
     return surface
 
 
+_TILE_CACHE: Dict[str, pygame.Surface] = {}
+_RESOURCE_CACHE: Dict[str, pygame.Surface] = {}
+_ENTITY_CACHE: Dict[str, pygame.Surface] = {}
+
+
+def make_tile_surface(key: str) -> pygame.Surface:
+    """Return a tile sprite, generating a placeholder when no asset exists."""
+
+    cached = _TILE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    asset = _load_tile_asset(key)
+    surface = asset if asset is not None else _generate_tile_placeholder(key)
+    _TILE_CACHE[key] = surface
+    return surface
+
+
+def make_resource_surface(key: str) -> pygame.Surface:
+    """Return a resource sprite with a baked shadow."""
+
+    cached = _RESOURCE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    asset = _load_resource_asset(key)
+    if asset is None:
+        base_surface = _generate_resource_placeholder(key)
+    else:
+        target_size = (int(TILE_WIDTH * 0.9), int(TILE_HEIGHT * 2.2))
+        base_surface = _scale(asset, target_size)
+
+    final_surface = _with_shadow(base_surface, shadow_alpha=70)
+    _RESOURCE_CACHE[key] = final_surface
+    return final_surface
+
+
+def make_entity_surface(key: str) -> pygame.Surface:
+    """Return an entity sprite with a stronger shadow."""
+
+    cached = _ENTITY_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    asset = _load_entity_asset(key)
+    base_surface = asset if asset is not None else _generate_entity_placeholder(key)
+    final_surface = _with_shadow(base_surface, shadow_alpha=90)
+    _ENTITY_CACHE[key] = final_surface
+    return final_surface
 @lru_cache(maxsize=None)
 def make_tile_surface(key: str) -> pygame.Surface:
     surface = _load_tile_asset(key)
