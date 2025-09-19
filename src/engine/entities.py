@@ -27,6 +27,11 @@ class Entity:
         )
         surface.blit(sprite, rect)
 
+        draw_x, draw_y = grid_to_screen(self.position.x, self.position.y, *camera_offset)
+        draw_x -= sprite.get_width() // 2
+        draw_y -= sprite.get_height() - sprite.get_height() // 3
+        surface.blit(sprite, (draw_x, draw_y))
+
     def move_towards(self, target: pygame.Vector2, speed: float, dt: float) -> float:
         direction = target - self.position
         distance = direction.length()
