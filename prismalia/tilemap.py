@@ -6,6 +6,7 @@ import math
 import random
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Set, Tuple
+
 import random
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Tuple
@@ -37,7 +38,9 @@ TERRAIN_TO_SPRITE: Dict[str, str] = {
 
 class TileMap:
     """Simple isometric tile map with layered noise generation."""
+
     """Simple isometric tile map with naive random generation."""
+
 
     def __init__(self, width: int, height: int) -> None:
         self.width = width
@@ -156,7 +159,6 @@ class TileMap:
                 if not self.is_walkable(tile_x, tile_y):
                     return False
         return True
-
 
     def draw(self, surface: pygame.Surface, asset_manager: AssetManager, camera_offset: Tuple[float, float]) -> None:
         offset_x, offset_y = camera_offset

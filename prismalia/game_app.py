@@ -7,6 +7,7 @@ import pygame
 from .assets import AssetManager
 from .constants import FPS, WINDOW_HEIGHT, WINDOW_WIDTH, init_fonts
 from .devchecks import ensure_no_merge_conflicts
+
 from .input import InputManager
 from .world import World
 
@@ -15,6 +16,7 @@ class GameApp:
     """High level application controller."""
 
     def __init__(self) -> None:
+
         ensure_no_merge_conflicts()
 
         pygame.init()
