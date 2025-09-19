@@ -9,8 +9,10 @@ assets/
 │   ├── idle.png        # Sprite sheet with idle animation frames in a row
 │   └── walk.png        # Sprite sheet with walking animation frames in a row
 ├── animal/
-│   ├── idle.png
-│   └── walk.png
+│   ├── idle.png        # Companion idle animation (pending)
+│   └── walk.png        # Companion walk animation (pending)
+├── objects/
+│   └── resources.png   # Inventory atlas arranged as a 4x4 grid
 └── tiles/
     ├── grass.png
     ├── dirt.png
