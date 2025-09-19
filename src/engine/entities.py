@@ -8,7 +8,6 @@ import pygame
 
 from .isometric import grid_to_screen
 from .constants import TILE_HEIGHT
-
 from .sprites import make_entity_surface
 
 
@@ -32,7 +31,6 @@ class Entity:
         draw_x -= sprite.get_width() // 2
         draw_y -= sprite.get_height() - sprite.get_height() // 3
         surface.blit(sprite, (draw_x, draw_y))
-
 
     def move_towards(self, target: pygame.Vector2, speed: float, dt: float) -> float:
         direction = target - self.position

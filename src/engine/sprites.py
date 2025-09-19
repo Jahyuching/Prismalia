@@ -7,6 +7,11 @@ fully playable. Surfaces are cached so that expensive scaling operations only
 run once per unique sprite request.
 """
 
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+
 """Generate simple placeholder sprites for the MVP."""
 
 
@@ -81,6 +86,17 @@ def _scale(surface: pygame.Surface, size: Tuple[int, int]) -> pygame.Surface:
     return pygame.transform.smoothscale(surface, size)
 
 
+def _load_tile_asset(key: str) -> Optional[pygame.Surface]:
+    cached = _TILE_ASSET_CACHE.get(key)
+    if key in _TILE_ASSET_CACHE:
+        return cached
+
+    tile_path = ASSETS_ROOT / "tiles" / f"{key}.png"
+    surface = _load_image(tile_path)
+    if surface is not None:
+        scaled = _scale(surface, (TILE_WIDTH, TILE_HEIGHT))
+        _TILE_ASSET_CACHE[key] = scaled
+        return scaled
 @lru_cache(maxsize=None)
 def _load_tile_asset(key: str) -> Optional[pygame.Surface]:
     tile_path = ASSETS_ROOT / "tiles" / f"{key}.png"
@@ -91,6 +107,18 @@ def _load_tile_asset(key: str) -> Optional[pygame.Surface]:
     object_path = ASSETS_ROOT / "objects" / f"{key}.png"
     surface = _load_image(object_path)
     if surface is not None:
+        scaled = _scale(surface, (TILE_WIDTH, TILE_HEIGHT))
+        _TILE_ASSET_CACHE[key] = scaled
+        return scaled
+    _TILE_ASSET_CACHE[key] = None
+    return None
+
+
+def _load_resource_asset(key: str) -> Optional[pygame.Surface]:
+    cached = _RESOURCE_ASSET_CACHE.get(key)
+    if key in _RESOURCE_ASSET_CACHE:
+        return cached
+
         return _scale(surface, (TILE_WIDTH, TILE_HEIGHT))
     return None
 
@@ -101,6 +129,11 @@ def _load_resource_asset(key: str) -> Optional[pygame.Surface]:
     direct_path = ASSETS_ROOT / "objects" / f"{key}.png"
     surface = _load_image(direct_path)
     if surface is not None:
+        _RESOURCE_ASSET_CACHE[key] = surface
+        return surface
+
+    if key not in RESOURCE_ATLAS_COORDS:
+        _RESOURCE_ASSET_CACHE[key] = None
         return surface
 
     if key not in RESOURCE_ATLAS_COORDS:
@@ -108,6 +141,8 @@ def _load_resource_asset(key: str) -> Optional[pygame.Surface]:
 
     atlas = _load_image(RESOURCE_ATLAS)
     if atlas is None:
+        _RESOURCE_ASSET_CACHE[key] = None
+
         return None
 
     cols = 4
@@ -119,6 +154,21 @@ def _load_resource_asset(key: str) -> Optional[pygame.Surface]:
     try:
         sub = atlas.subsurface(rect).copy()
     except ValueError:
+        _RESOURCE_ASSET_CACHE[key] = None
+        return None
+    _RESOURCE_ASSET_CACHE[key] = sub
+    return sub
+
+
+def _load_entity_asset(kind: str) -> Optional[pygame.Surface]:
+    cached = _ENTITY_ASSET_CACHE.get(kind)
+    if kind in _ENTITY_ASSET_CACHE:
+        return cached
+
+    idle_path = ASSETS_ROOT / kind / "idle.png"
+    sheet = _load_image(idle_path)
+    if sheet is None:
+        _ENTITY_ASSET_CACHE[kind] = None
         return None
     return sub
 
@@ -150,6 +200,9 @@ def _load_entity_asset(kind: str) -> Optional[pygame.Surface]:
     target_width = int(TILE_WIDTH * 0.9)
     scale_factor = target_width / frame_surface.get_width()
     target_height = max(1, int(frame_surface.get_height() * scale_factor))
+    scaled = _scale(frame_surface, (target_width, target_height))
+    _ENTITY_ASSET_CACHE[kind] = scaled
+    return scaled
     return _scale(frame_surface, (target_width, target_height))
 
 
@@ -217,6 +270,10 @@ def _with_shadow(sprite: pygame.Surface, shadow_alpha: int = 80) -> pygame.Surfa
     return surface
 
 
+_TILE_ASSET_CACHE: Dict[str, Optional[pygame.Surface]] = {}
+_RESOURCE_ASSET_CACHE: Dict[str, Optional[pygame.Surface]] = {}
+_ENTITY_ASSET_CACHE: Dict[str, Optional[pygame.Surface]] = {}
+
 _TILE_CACHE: Dict[str, pygame.Surface] = {}
 _RESOURCE_CACHE: Dict[str, pygame.Surface] = {}
 _ENTITY_CACHE: Dict[str, pygame.Surface] = {}
@@ -266,6 +323,7 @@ def make_entity_surface(key: str) -> pygame.Surface:
     final_surface = _with_shadow(base_surface, shadow_alpha=90)
     _ENTITY_CACHE[key] = final_surface
     return final_surface
+
 @lru_cache(maxsize=None)
 def make_tile_surface(key: str) -> pygame.Surface:
     surface = _load_tile_asset(key)
