@@ -1,6 +1,6 @@
-"""Convenience launcher for the Prismalia sandbox prototype."""
+"""Convenience launcher for the Prismalia MVP built in :mod:`src`."""
 
-from prismalia.game_app import main
+from src.main import main
 
 
 if __name__ == "__main__":
