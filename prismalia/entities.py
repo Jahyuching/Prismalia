@@ -15,13 +15,10 @@ from .constants import (
     PLAYER_COLLISION_RADIUS,
     PLAYER_SPEED,
 )
-
-from .constants import ANIMAL_SPEED, GRID_TILE_SIZE, PLAYER_SPEED
-
+from .input import InputState
 from .inventory import Inventory
 from .isoutils import cartesian_to_isometric
 from .tilemap import TileMap
-from .input import InputState
 
 
 @dataclass
@@ -41,9 +38,6 @@ class Entity:
         speed: float,
         collision_radius: float = 0.35,
     ) -> None:
-
-    def __init__(self, name: str, position: Tuple[float, float], speed: float) -> None:
-
         self.name = name
         self.state = EntityState(position=pygame.Vector2(position))
         self.speed = speed
@@ -61,12 +55,17 @@ class Entity:
         if animation:
             animation.reset()
 
-    def update(self, dt: float, *_) -> None:
+    def update(self, dt: float, *_: object) -> None:
         animation = self.animations.get(self.state.animation)
         if animation:
             animation.update(dt)
 
-    def draw(self, surface: pygame.Surface, asset_manager: AssetManager, camera_offset: Tuple[float, float]) -> None:
+    def draw(
+        self,
+        surface: pygame.Surface,
+        asset_manager: AssetManager,
+        camera_offset: Tuple[float, float],
+    ) -> None:
         animation = self.animations.get(self.state.animation)
         if animation:
             sprite = animation.current_surface
@@ -98,12 +97,6 @@ class Entity:
 class Player(Entity):
     def __init__(self, position: Tuple[float, float]) -> None:
         super().__init__("player", position, PLAYER_SPEED, PLAYER_COLLISION_RADIUS)
-
-
-class Player(Entity):
-    def __init__(self, position: Tuple[float, float]) -> None:
-        super().__init__("player", position, PLAYER_SPEED)
-
         self.inventory = Inventory()
         self.health = 100
         self.energy = 100
@@ -120,47 +113,30 @@ class Player(Entity):
         velocity = move * self.speed * dt
         self.move_with_collisions(tilemap, velocity)
 
-        new_position = self.state.position + velocity
-        target_tile = pygame.Vector2(int(round(new_position.x)), int(round(new_position.y)))
-        if tilemap.is_walkable(int(target_tile.x), int(target_tile.y)):
-            self.state.position = new_position
-
-
-        super().update(dt)
+        super().update(dt, tilemap, input_state)
 
 
 class CompanionAnimal(Entity):
     def __init__(self, position: Tuple[float, float]) -> None:
         super().__init__("animal", position, ANIMAL_SPEED, ANIMAL_COLLISION_RADIUS)
-
-        super().__init__("animal", position, ANIMAL_SPEED)
-
         self.hunger = 100
         self.task_queue: list[Tuple[str, dict]] = []
 
     def update(self, dt: float, tilemap: TileMap, target: Player) -> None:  # type: ignore[override]
         direction = target.state.position - self.state.position
         if direction.length_squared() > 0.25:
-
-        if direction.length_squared() > 4:
-
             direction = direction.normalize()
             self.state.facing = direction
             self.set_animation("walk")
         else:
             direction.update(0, 0)
             self.set_animation("idle")
+
         velocity = direction * self.speed * dt
         self.move_with_collisions(tilemap, velocity)
 
-        new_position = self.state.position + velocity
-        tile = pygame.Vector2(int(round(new_position.x)), int(round(new_position.y)))
-        if tilemap.is_walkable(int(tile.x), int(tile.y)):
-            self.state.position = new_position
-
-
         self.hunger = max(0, self.hunger - dt * 2)
-        super().update(dt)
+        super().update(dt, tilemap, target)
 
     def enqueue_task(self, name: str, parameters: Optional[dict] = None) -> None:
         self.task_queue.append((name, parameters or {}))
