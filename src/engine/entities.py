@@ -7,6 +7,8 @@ from typing import Tuple
 import pygame
 
 from .isometric import grid_to_screen
+from .constants import TILE_HEIGHT
+
 from .sprites import make_entity_surface
 
 
@@ -18,6 +20,13 @@ class Entity:
 
     def draw(self, surface: pygame.Surface, camera_offset: Tuple[float, float]) -> None:
         sprite = make_entity_surface(self.kind)
+        screen_x, screen_y = grid_to_screen(self.position.x, self.position.y, *camera_offset)
+        rect = sprite.get_rect()
+        rect.midbottom = (
+            int(screen_x),
+            int(screen_y + TILE_HEIGHT // 2),
+        )
+        surface.blit(sprite, rect)
         draw_x, draw_y = grid_to_screen(self.position.x, self.position.y, *camera_offset)
         draw_x -= sprite.get_width() // 2
         draw_y -= sprite.get_height() - sprite.get_height() // 3
