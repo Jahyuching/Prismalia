@@ -8,6 +8,13 @@ from typing import Dict, Optional, Tuple
 import pygame
 
 from .assets import Animation, AssetManager
+from .constants import (
+    ANIMAL_COLLISION_RADIUS,
+    ANIMAL_SPEED,
+    GRID_TILE_SIZE,
+    PLAYER_COLLISION_RADIUS,
+    PLAYER_SPEED,
+)
 from .constants import ANIMAL_SPEED, GRID_TILE_SIZE, PLAYER_SPEED
 from .inventory import Inventory
 from .isoutils import cartesian_to_isometric
@@ -25,11 +32,20 @@ class EntityState:
 class Entity:
     """Base class for all moving actors."""
 
+    def __init__(
+        self,
+        name: str,
+        position: Tuple[float, float],
+        speed: float,
+        collision_radius: float = 0.35,
+    ) -> None:
     def __init__(self, name: str, position: Tuple[float, float], speed: float) -> None:
         self.name = name
         self.state = EntityState(position=pygame.Vector2(position))
         self.speed = speed
         self.animations: Dict[str, Animation] = {}
+        self.collision_radius = collision_radius
+
 
     def add_animation(self, key: str, animation: Animation) -> None:
         self.animations[key] = animation
@@ -58,6 +74,27 @@ class Entity:
         draw_y = iso_y + camera_offset[1] - sprite.get_height() + GRID_TILE_SIZE[1] // 2
         surface.blit(sprite, (draw_x, draw_y))
 
+    def move_with_collisions(self, tilemap: TileMap, velocity: pygame.Vector2) -> None:
+        """Move the entity while respecting non-walkable tiles."""
+
+        if velocity.length_squared() == 0:
+            return
+
+        proposed = self.state.position + velocity
+        radius = self.collision_radius
+        if tilemap.is_walkable_point(proposed.x, proposed.y, radius):
+            self.state.position = proposed
+            return
+
+        if tilemap.is_walkable_point(proposed.x, self.state.position.y, radius):
+            self.state.position.x = proposed.x
+        if tilemap.is_walkable_point(self.state.position.x, proposed.y, radius):
+            self.state.position.y = proposed.y
+
+
+class Player(Entity):
+    def __init__(self, position: Tuple[float, float]) -> None:
+        super().__init__("player", position, PLAYER_SPEED, PLAYER_COLLISION_RADIUS)
 
 class Player(Entity):
     def __init__(self, position: Tuple[float, float]) -> None:
@@ -76,6 +113,7 @@ class Player(Entity):
             self.set_animation("idle")
 
         velocity = move * self.speed * dt
+        self.move_with_collisions(tilemap, velocity)
         new_position = self.state.position + velocity
         target_tile = pygame.Vector2(int(round(new_position.x)), int(round(new_position.y)))
         if tilemap.is_walkable(int(target_tile.x), int(target_tile.y)):
@@ -86,12 +124,14 @@ class Player(Entity):
 
 class CompanionAnimal(Entity):
     def __init__(self, position: Tuple[float, float]) -> None:
+        super().__init__("animal", position, ANIMAL_SPEED, ANIMAL_COLLISION_RADIUS)
         super().__init__("animal", position, ANIMAL_SPEED)
         self.hunger = 100
         self.task_queue: list[Tuple[str, dict]] = []
 
     def update(self, dt: float, tilemap: TileMap, target: Player) -> None:  # type: ignore[override]
         direction = target.state.position - self.state.position
+        if direction.length_squared() > 0.25:
         if direction.length_squared() > 4:
             direction = direction.normalize()
             self.state.facing = direction
@@ -100,6 +140,7 @@ class CompanionAnimal(Entity):
             direction.update(0, 0)
             self.set_animation("idle")
         velocity = direction * self.speed * dt
+        self.move_with_collisions(tilemap, velocity)
         new_position = self.state.position + velocity
         tile = pygame.Vector2(int(round(new_position.x)), int(round(new_position.y)))
         if tilemap.is_walkable(int(tile.x), int(tile.y)):

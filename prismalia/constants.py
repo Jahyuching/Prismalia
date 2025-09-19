@@ -15,6 +15,10 @@ ISO_TILE_HEIGHT = 32
 GRID_TILE_SIZE = (ISO_TILE_WIDTH, ISO_TILE_HEIGHT)
 
 # Entity defaults
+PLAYER_SPEED = 200  # tiles per second converted in cartesian space
+ANIMAL_SPEED = 160
+PLAYER_COLLISION_RADIUS = 0.4
+ANIMAL_COLLISION_RADIUS = 0.35
 PLAYER_SPEED = 140  # pixels per second in cartesian space
 ANIMAL_SPEED = 120
 

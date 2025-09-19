@@ -7,6 +7,7 @@ Un monde simple. Des règles élémentaires. Des possibilités infinies.
 Le dépôt contient un prototype minimal construit avec Python et Pygame.
 Il met en place :
 
+- Un rendu isométrique avec une carte procédurale plus naturelle.
 - Un rendu isométrique avec une carte générée aléatoirement.
 - Un joueur et un animal compagnon contrôlés par des animations.
 - Un inventaire basique avec collecte de ressources.
@@ -30,6 +31,7 @@ par défaut sont :
 | Interagir         | E |
 | Ouvrir inventaire | I |
 | Nourrir animal    | F |
+| Interface logique | L |
 | Interface logique | Q |
 
 ## Structure du code

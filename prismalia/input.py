@@ -29,6 +29,11 @@ class InputManager:
         self.state = InputState()
         keys = pygame.key.get_pressed()
         # Movement in cartesian grid axes (x -> east, y -> south)
+        if keys[pygame.K_w] or keys[pygame.K_z] or keys[pygame.K_UP]:
+            self.state.move_y -= 1
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            self.state.move_y += 1
+        if keys[pygame.K_a] or keys[pygame.K_q] or keys[pygame.K_LEFT]:
         if keys[pygame.K_w] or keys[pygame.K_UP]:
             self.state.move_y -= 1
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:
@@ -50,6 +55,7 @@ class InputManager:
                     self.state.open_inventory = True
                 if event.key == pygame.K_f:
                     self.state.feed_animal = True
+                if event.key == pygame.K_l:
                 if event.key == pygame.K_q:
                     self.state.toggle_logic = True
 
