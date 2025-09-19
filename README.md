@@ -8,6 +8,7 @@ Le dépôt contient un prototype minimal construit avec Python et Pygame.
 Il met en place :
 
 - Un rendu isométrique avec une carte procédurale plus naturelle.
+- Un rendu isométrique avec une carte générée aléatoirement.
 - Un joueur et un animal compagnon contrôlés par des animations.
 - Un inventaire basique avec collecte de ressources.
 - Un système d’assets configurable acceptant sprites PNG et spritesheets.
@@ -31,6 +32,7 @@ par défaut sont :
 | Ouvrir inventaire | I |
 | Nourrir animal    | F |
 | Interface logique | L |
+| Interface logique | Q |
 
 ## Structure du code
 
@@ -57,12 +59,6 @@ Les spritesheets doivent contenir les frames en ligne unique de largeur fixée.
 La taille cible pour un tile isométrique est de 64x32 px (ratio 2:1). Les
 animations du joueur et de l’animal utilisent la taille définie dans
 `prismalia/constants.py`.
-
-> ℹ️ Au démarrage, le jeu vérifie qu’aucun marqueur de conflit Git
-(`<<<<<<<`, `=======`, `>>>>>>>`) n’est présent dans les sources. Si vous devez
-temporairement ignorer ce contrôle (par exemple dans un environnement
-contraint), définissez la variable d’environnement
-`PRISMALIA_SKIP_CONFLICT_CHECK=1` avant de lancer l’application.
 
 ## Étapes suivantes
 

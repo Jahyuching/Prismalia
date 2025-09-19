@@ -34,6 +34,11 @@ class InputManager:
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:
             self.state.move_y += 1
         if keys[pygame.K_a] or keys[pygame.K_q] or keys[pygame.K_LEFT]:
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            self.state.move_y -= 1
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            self.state.move_y += 1
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
             self.state.move_x -= 1
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.state.move_x += 1
@@ -51,6 +56,7 @@ class InputManager:
                 if event.key == pygame.K_f:
                     self.state.feed_animal = True
                 if event.key == pygame.K_l:
+                if event.key == pygame.K_q:
                     self.state.toggle_logic = True
 
         return self.state

@@ -19,6 +19,8 @@ PLAYER_SPEED = 200  # tiles per second converted in cartesian space
 ANIMAL_SPEED = 160
 PLAYER_COLLISION_RADIUS = 0.4
 ANIMAL_COLLISION_RADIUS = 0.35
+PLAYER_SPEED = 140  # pixels per second in cartesian space
+ANIMAL_SPEED = 120
 
 # Layers for drawing order
 LAYER_FLOOR = 0

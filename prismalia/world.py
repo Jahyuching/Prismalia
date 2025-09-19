@@ -41,6 +41,10 @@ class World:
         )
         self.player = Player(position=(spawn_x, spawn_y))
         self.animal = CompanionAnimal(position=(companion_x, companion_y))
+        self.tilemap = TileMap(width=32, height=32)
+        self.tilemap.generate()
+        self.player = Player(position=(5, 5))
+        self.animal = CompanionAnimal(position=(7, 6))
         self.camera = Camera()
         self.logic_unlocks: set[str] = set()
         self.pending_notifications: list[str] = []
