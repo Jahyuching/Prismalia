@@ -1,3 +1,10 @@
+# Sprite utilities and placeholder generation for Prismalia.
+#
+# This module centralises image loading, caching and placeholder rendering for
+# the prototype. It keeps the runtime free from expensive disk reads while
+# ensuring that every requested sprite yields a pleasant looking surface even
+# when authored art is missing. All surfaces respect the 64×32 tile footprint
+# used throughout Prismalia's isometric renderer.
 """Sprite utilities and placeholder generation for Prismalia.
 
 This module centralises image loading, caching and placeholder rendering for the
@@ -60,6 +67,7 @@ RESOURCE_COLORS: Dict[str, Tuple[int, int, int]] = {
 ENTITY_COLORS: Dict[str, Tuple[int, int, int]] = {
     "player": (78, 172, 226),
     "animal": (232, 194, 98),
+
 TERRAIN_COLORS: Dict[str, Tuple[int, int, int]] = {
     "grass": (90, 150, 90),
     "dirt": (130, 100, 70),
@@ -91,6 +99,7 @@ RESOURCE_ATLAS_COORDS: Dict[str, Tuple[int, int]] = {
 
 
 class SpriteCache:
+    "Central cache for tile, resource and entity sprites."
     """Central cache for tile, resource and entity sprites."""
 
     def __init__(self) -> None:
@@ -348,18 +357,21 @@ _CACHE = SpriteCache()
 
 
 def make_tile_surface(key: str) -> pygame.Surface:
+    "Return a surface representing a terrain tile."
     """Return a surface representing a terrain tile."""
 
     return _CACHE.tile(key)
 
 
 def make_resource_surface(key: str) -> pygame.Surface:
+    "Return a surface representing a resource with a baked shadow."
     """Return a surface representing a resource with a baked shadow."""
 
     return _CACHE.resource(key)
 
 
 def make_entity_surface(key: str) -> pygame.Surface:
+    "Return a surface representing an entity with a stronger shadow."
     """Return a surface representing an entity with a stronger shadow."""
 
     return _CACHE.entity(key)
@@ -370,6 +382,7 @@ __all__ = [
     "make_resource_surface",
     "make_entity_surface",
 ]
+
 
 def _load_image(path: Path) -> Optional[pygame.Surface]:
     if not path.exists():
