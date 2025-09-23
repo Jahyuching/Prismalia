@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Any, Tuple
 
 import pygame
 
@@ -56,3 +56,30 @@ class Player(Entity):
             self.selected_block = "campfire"
         else:
             self.selected_block = "wood_block"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "position": [float(self.position.x), float(self.position.y)],
+            "hunger": float(self.hunger),
+            "selected_block": self.selected_block,
+            "inventory": self.inventory.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Player":
+        position_data = data.get("position", (0.0, 0.0))
+        if isinstance(position_data, (list, tuple)) and len(position_data) >= 2:
+            pos = (float(position_data[0]), float(position_data[1]))
+        else:
+            pos = (0.0, 0.0)
+        player = cls(pos)
+        hunger = data.get("hunger")
+        if hunger is not None:
+            player.hunger = float(hunger)
+        selected_block = data.get("selected_block")
+        if isinstance(selected_block, str):
+            player.selected_block = selected_block
+        inventory_data = data.get("inventory")
+        if isinstance(inventory_data, dict):
+            player.inventory = Inventory.from_dict(inventory_data)
+        return player

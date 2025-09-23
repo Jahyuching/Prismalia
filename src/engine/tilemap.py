@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 
 import pygame
 
@@ -20,6 +20,27 @@ class Tile:
     walkable: bool = True
     resource: Optional[str] = None
     block: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "terrain": self.terrain,
+            "walkable": self.walkable,
+            "resource": self.resource,
+            "block": self.block,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Tile":
+        terrain = str(data.get("terrain", "grass"))
+        walkable = bool(data.get("walkable", True))
+        resource = data.get("resource")
+        block = data.get("block")
+        return cls(
+            terrain=terrain,
+            walkable=walkable,
+            resource=str(resource) if resource is not None else None,
+            block=str(block) if block is not None else None,
+        )
 
 
 RESOURCE_TERRAIN = {
@@ -242,3 +263,36 @@ class TileMap:
     def clear_block(self, x: int, y: int) -> None:
         if self.in_bounds(x, y):
             self.tiles[y][x].block = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "width": self.width,
+            "height": self.height,
+            "tiles": [
+                [tile.to_dict() for tile in row]
+                for row in self.tiles
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "TileMap":
+        width = int(data.get("width", 0))
+        height = int(data.get("height", 0))
+        tilemap = cls(width, height)
+        tiles_data = data.get("tiles")
+        if isinstance(tiles_data, list) and tiles_data:
+            rows: List[List[Tile]] = []
+            for row_data in tiles_data:
+                if not isinstance(row_data, list):
+                    continue
+                row: List[Tile] = []
+                for tile_data in row_data:
+                    if isinstance(tile_data, dict):
+                        row.append(Tile.from_dict(tile_data))
+                if row:
+                    rows.append(row)
+            if rows:
+                tilemap.tiles = rows
+                tilemap.height = len(rows)
+                tilemap.width = len(rows[0])
+        return tilemap

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import pygame
 
@@ -69,3 +69,58 @@ class Animal(Entity):
 
     def feed(self) -> None:
         self.hunger = min(100.0, self.hunger + ANIMAL_HUNGER_REPLENISH)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "position": [float(self.position.x), float(self.position.y)],
+            "hunger": float(self.hunger),
+            "pending_commands": [
+                self._serialise_command(command) for command in self.pending_commands
+            ],
+            "active_command": self._serialise_command(self.active_command),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Animal":
+        position_data = data.get("position", (0.0, 0.0))
+        if isinstance(position_data, (list, tuple)) and len(position_data) >= 2:
+            pos = (float(position_data[0]), float(position_data[1]))
+        else:
+            pos = (0.0, 0.0)
+        animal = cls(pos)
+        hunger = data.get("hunger")
+        if hunger is not None:
+            animal.hunger = float(hunger)
+        pending = data.get("pending_commands", [])
+        if isinstance(pending, list):
+            animal.pending_commands = [
+                cls._deserialise_command(command)
+                for command in pending
+                if isinstance(command, dict)
+            ]
+        active = data.get("active_command")
+        if isinstance(active, dict):
+            animal.active_command = cls._deserialise_command(active)
+        else:
+            animal.active_command = None
+        return animal
+
+    @staticmethod
+    def _serialise_command(command: Optional[Dict[str, object]]) -> Optional[Dict[str, object]]:
+        if command is None:
+            return None
+        serialised = dict(command)
+        target = serialised.get("target")
+        if isinstance(target, pygame.Vector2):
+            serialised["target"] = [float(target.x), float(target.y)]
+        elif isinstance(target, (list, tuple)) and len(target) >= 2:
+            serialised["target"] = [float(target[0]), float(target[1])]
+        return serialised
+
+    @staticmethod
+    def _deserialise_command(command: Dict[str, object]) -> Dict[str, object]:
+        deserialised = dict(command)
+        target = deserialised.get("target")
+        if isinstance(target, (list, tuple)) and len(target) >= 2:
+            deserialised["target"] = (float(target[0]), float(target[1]))
+        return deserialised

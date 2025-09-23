@@ -32,3 +32,17 @@ class Inventory:
 
     def items(self) -> Iterable[tuple[str, int]]:
         return self.stacks.items()
+
+    def to_dict(self) -> dict[str, object]:
+        return {"stacks": dict(self.stacks)}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> "Inventory":
+        inventory = cls()
+        stacks = data.get("stacks", {}) if isinstance(data, dict) else {}
+        inventory.stacks = {
+            str(resource): int(amount)
+            for resource, amount in stacks.items()
+            if isinstance(resource, str)
+        }
+        return inventory

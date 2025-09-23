@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Tuple
+import random
+from typing import Any, Iterable, List, Optional, Tuple
 
 import pygame
 
@@ -14,10 +15,6 @@ from ..engine.constants import (
     WINDOW_HEIGHT,
     WINDOW_WIDTH,
 )
-
-
-
-from ..engine.constants import CAMPFIRE_LIGHT_RADIUS, COLOR_SKY, PLAYER_LIGHT_RADIUS, WINDOW_WIDTH
 from ..engine.isometric import grid_to_screen, screen_to_grid
 from ..engine.tilemap import TileMap
 
@@ -27,20 +24,146 @@ from .resources import BUILDABLE_BLOCKS, RESOURCE_DEFINITIONS, RESOURCE_DISPLAY_
 
 
 class World:
-    def __init__(self, size: Tuple[int, int] = (24, 24)) -> None:
+    def __init__(
+        self,
+        size: Tuple[int, int] = (24, 24),
+        *,
+        slot_name: Optional[str] = None,
+        title: Optional[str] = None,
+        seed: Optional[int] = None,
+        tilemap: Optional[TileMap] = None,
+        player: Optional[Player] = None,
+        animal: Optional[Animal] = None,
+        campfires: Optional[Iterable[Tuple[float, float] | pygame.Vector2]] = None,
+    ) -> None:
         self.surface_size = (WINDOW_WIDTH, WINDOW_HEIGHT)
-        self.tilemap = TileMap(*size)
-        self.tilemap.generate()
-        spawn = (size[0] // 2, size[1] // 2)
-        self.player = Player((spawn[0] + 0.5, spawn[1] + 0.5))
-        self.animal = Animal((spawn[0] + 2, spawn[1] + 0.5))
-        self.campfires: List[pygame.Vector2] = []
+        if seed is None:
+            seed = random.randrange(0, 2**31)
+        self.seed = int(seed)
+        if tilemap is None:
+            self.tilemap = TileMap(*size)
+            self.tilemap.generate(self.seed)
+        else:
+            self.tilemap = tilemap
+        spawn = (self.tilemap.width // 2, self.tilemap.height // 2)
+        self.player = player if player is not None else Player((spawn[0] + 0.5, spawn[1] + 0.5))
+        self.animal = animal if animal is not None else Animal((spawn[0] + 2, spawn[1] + 0.5))
+        if campfires is None:
+            self.campfires = []
+        else:
+            self.campfires = []
+            for campfire in campfires:
+                if isinstance(campfire, pygame.Vector2):
+                    self.campfires.append(campfire.copy())
+                else:
+                    try:
+                        cx, cy = campfire  # type: ignore[assignment]
+                    except (TypeError, ValueError):
+                        continue
+                    self.campfires.append(pygame.Vector2(float(cx), float(cy)))
         self.camera_offset = (0.0, 0.0)
         self.message: Optional[str] = None
         self._light_mask_cache: dict[tuple[int, int, int], pygame.Surface] = {}
+        self.slot_name = slot_name
+        self.title = title or slot_name or "World"
 
     def set_surface_size(self, size: Tuple[int, int]) -> None:
         self.surface_size = size
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "slot_name": self.slot_name,
+            "title": self.title,
+            "seed": self.seed,
+            "tilemap": self.tilemap.to_dict(),
+            "player": self.player.to_dict(),
+            "animal": self.animal.to_dict(),
+            "campfires": [
+                [float(campfire.x), float(campfire.y)] for campfire in self.campfires
+            ],
+            "message": self.message,
+            "camera_offset": [
+                float(self.camera_offset[0]),
+                float(self.camera_offset[1]),
+            ],
+        }
+
+    @classmethod
+    def from_save(
+        cls, data: dict[str, Any], metadata: Optional[dict[str, Any]] = None
+    ) -> "World":
+        metadata = metadata or {}
+        size_meta = metadata.get("size")
+        if isinstance(size_meta, (list, tuple)) and len(size_meta) >= 2:
+            size = (int(size_meta[0]), int(size_meta[1]))
+        else:
+            size = (24, 24)
+        tilemap_data = data.get("tilemap")
+        if isinstance(tilemap_data, dict):
+            tilemap = TileMap.from_dict(tilemap_data)
+            size = (tilemap.width or size[0], tilemap.height or size[1])
+        else:
+            tilemap = TileMap(*size)
+            seed_value = data.get("seed")
+            if seed_value is not None:
+                try:
+                    tilemap_seed = int(seed_value)
+                except (TypeError, ValueError):
+                    tilemap_seed = random.randrange(0, 2**31)
+            else:
+                tilemap_seed = random.randrange(0, 2**31)
+            tilemap.generate(tilemap_seed)
+
+        player_data = data.get("player")
+        player = Player.from_dict(player_data) if isinstance(player_data, dict) else None
+        animal_data = data.get("animal")
+        animal = Animal.from_dict(animal_data) if isinstance(animal_data, dict) else None
+
+        campfire_data = data.get("campfires", [])
+        campfires: List[Tuple[float, float]] = []
+        if isinstance(campfire_data, list):
+            for entry in campfire_data:
+                if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                    campfires.append((float(entry[0]), float(entry[1])))
+
+        seed_value = data.get("seed")
+        try:
+            seed_int = int(seed_value) if seed_value is not None else None
+        except (TypeError, ValueError):
+            seed_int = None
+
+        slot_name = metadata.get("slot_name") or data.get("slot_name")
+        title = metadata.get("title") or data.get("title")
+
+        world = cls(
+            size=size,
+            slot_name=slot_name if isinstance(slot_name, str) else None,
+            title=title if isinstance(title, str) else None,
+            seed=seed_int,
+            tilemap=tilemap,
+            player=player,
+            animal=animal,
+            campfires=campfires,
+        )
+
+        message = data.get("message")
+        if isinstance(message, str):
+            world.message = message
+        camera_offset = data.get("camera_offset")
+        if isinstance(camera_offset, (list, tuple)) and len(camera_offset) >= 2:
+            world.camera_offset = (float(camera_offset[0]), float(camera_offset[1]))
+        return world
+
+    def save(self, slot_name: Optional[str] = None) -> None:
+        if slot_name is not None:
+            self.slot_name = slot_name
+            if not self.title:
+                self.title = slot_name
+        if not self.slot_name:
+            raise ValueError("World must have a slot name before saving")
+        from ..storage import save_manager
+
+        save_manager.save_world(self, self.slot_name)
 
     # --- Update & simulation -------------------------------------------------
     def update(self, dt: float, keys: pygame.key.ScancodeWrapper) -> None:
