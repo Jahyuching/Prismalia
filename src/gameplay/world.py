@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
+import random
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import pygame
@@ -14,10 +17,6 @@ from ..engine.constants import (
     WINDOW_HEIGHT,
     WINDOW_WIDTH,
 )
-
-
-
-from ..engine.constants import CAMPFIRE_LIGHT_RADIUS, COLOR_SKY, PLAYER_LIGHT_RADIUS, WINDOW_WIDTH
 from ..engine.isometric import grid_to_screen, screen_to_grid
 from ..engine.tilemap import TileMap
 
@@ -25,12 +24,15 @@ from .animal import Animal
 from .player import Player
 from .resources import BUILDABLE_BLOCKS, RESOURCE_DEFINITIONS, RESOURCE_DISPLAY_NAMES
 
+SAVE_DIR = Path(__file__).resolve().parents[2] / "saves"
+
 
 class World:
-    def __init__(self, size: Tuple[int, int] = (24, 24)) -> None:
+    def __init__(self, size: Tuple[int, int] = (24, 24), *, seed: int | None = None) -> None:
         self.surface_size = (WINDOW_WIDTH, WINDOW_HEIGHT)
         self.tilemap = TileMap(*size)
-        self.tilemap.generate()
+        self.seed = seed if seed is not None else random.randrange(0, 2**31)
+        self.tilemap.generate(self.seed)
         spawn = (size[0] // 2, size[1] // 2)
         self.player = Player((spawn[0] + 0.5, spawn[1] + 0.5))
         self.animal = Animal((spawn[0] + 2, spawn[1] + 0.5))
@@ -38,6 +40,14 @@ class World:
         self.camera_offset = (0.0, 0.0)
         self.message: Optional[str] = None
         self._light_mask_cache: dict[tuple[int, int, int], pygame.Surface] = {}
+
+    @classmethod
+    def new(
+        cls, seed: int | None = None, size: Tuple[int, int] = (24, 24)
+    ) -> "World":
+        """Factory creating a freshly generated world."""
+
+        return cls(size=size, seed=seed)
 
     def set_surface_size(self, size: Tuple[int, int]) -> None:
         self.surface_size = size
@@ -195,3 +205,84 @@ class World:
         message = self.message
         self.message = None
         return message
+
+
+def _ensure_save_dir() -> Path:
+    SAVE_DIR.mkdir(parents=True, exist_ok=True)
+    return SAVE_DIR
+
+
+def list_saved_worlds() -> List[str]:
+    """Return the identifiers of available saved worlds."""
+
+    directory = _ensure_save_dir()
+    saves = [path.stem for path in directory.glob("*.json")]
+    return sorted(saves)
+
+
+def load_world(identifier: str | Path) -> World:
+    """Load a world from disk using a simple JSON representation."""
+
+    directory = _ensure_save_dir()
+    path = Path(identifier)
+    if not path.is_absolute():
+        path = directory / path
+    if path.is_dir():
+        path = path / "world.json"
+    if path.suffix != ".json":
+        path = path.with_suffix(".json")
+    if not path.exists():
+        raise FileNotFoundError(f"No saved world found for '{identifier}'.")
+
+    with path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    size_data = data.get("size")
+    if isinstance(size_data, (list, tuple)) and len(size_data) == 2:
+        size = (int(size_data[0]), int(size_data[1]))
+    else:
+        size = (24, 24)
+    seed = data.get("seed")
+
+    world = World(size=size, seed=seed)
+
+    player_pos = data.get("player_position")
+    if isinstance(player_pos, (list, tuple)) and len(player_pos) == 2:
+        world.player.position.update(float(player_pos[0]), float(player_pos[1]))
+
+    animal_pos = data.get("animal_position")
+    if isinstance(animal_pos, (list, tuple)) and len(animal_pos) == 2:
+        world.animal.position.update(float(animal_pos[0]), float(animal_pos[1]))
+
+    inventory = data.get("inventory")
+    if isinstance(inventory, dict):
+        world.player.inventory.stacks = {
+            str(resource): int(amount) for resource, amount in inventory.items()
+        }
+
+    selected_block = data.get("selected_block")
+    if isinstance(selected_block, str):
+        world.player.selected_block = selected_block
+
+    campfires = data.get("campfires")
+    if isinstance(campfires, list):
+        parsed_campfires: List[pygame.Vector2] = []
+        for item in campfires:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                try:
+                    parsed_campfires.append(
+                        pygame.Vector2(float(item[0]), float(item[1]))
+                    )
+                except (TypeError, ValueError):
+                    continue
+        world.campfires = parsed_campfires
+
+    player_hunger = data.get("player_hunger")
+    if isinstance(player_hunger, (int, float)):
+        world.player.hunger = float(player_hunger)
+
+    animal_hunger = data.get("animal_hunger")
+    if isinstance(animal_hunger, (int, float)):
+        world.animal.hunger = float(animal_hunger)
+
+    return world
