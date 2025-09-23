@@ -21,6 +21,12 @@ class Player(Entity):
         self.inventory = Inventory()
         self.hunger = 100.0
         self.selected_block = "wood_block"
+        self.target_tile = pygame.Vector2(
+            math.floor(self.position.x) + 0.5,
+            math.floor(self.position.y) + 0.5,
+        )
+        self.position.update(self.target_tile)
+        self.is_moving = False
 
     def update(self, keys: pygame.key.ScancodeWrapper, tilemap: TileMap, dt: float) -> None:
         move = pygame.Vector2(0, 0)
@@ -40,6 +46,47 @@ class Player(Entity):
             tile_y = math.floor(proposed.y)
             if tilemap.in_bounds(tile_x, tile_y) and tilemap.is_walkable(tile_x, tile_y):
                 self.position.update(proposed)
+        movement_epsilon = 1e-4
+        movement_epsilon_sq = movement_epsilon * movement_epsilon
+
+        if (self.position - self.target_tile).length_squared() <= movement_epsilon_sq:
+            self.position.update(self.target_tile)
+            move = pygame.Vector2(0, 0)
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
+                move.y -= 1
+            if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+                move.y += 1
+            if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+                move.x -= 1
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+                move.x += 1
+
+            if move.length_squared() > 0:
+                desired_tile = self.target_tile + move
+                target_centre = pygame.Vector2(
+                    math.floor(desired_tile.x) + 0.5,
+                    math.floor(desired_tile.y) + 0.5,
+                )
+                if target_centre != self.target_tile:
+                    tile_x = int(target_centre.x)
+                    tile_y = int(target_centre.y)
+                    if tilemap.is_walkable(tile_x, tile_y):
+                        self.target_tile = target_centre
+
+        if (self.position - self.target_tile).length_squared() > movement_epsilon_sq:
+            direction = self.target_tile - self.position
+            distance = direction.length()
+            if distance <= movement_epsilon:
+                self.position.update(self.target_tile)
+            else:
+                max_step = PLAYER_MOVE_SPEED * dt
+                if distance <= max_step:
+                    self.position.update(self.target_tile)
+                else:
+                    direction.scale_to_length(max_step)
+                    self.position += direction
+
+        self.is_moving = (self.position - self.target_tile).length_squared() > movement_epsilon_sq
 
         epsilon = 1e-3
         max_x = max(0.0, tilemap.width - epsilon)
