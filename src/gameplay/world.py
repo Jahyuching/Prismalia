@@ -51,7 +51,10 @@ class World:
     def _compute_camera_offset(self) -> Tuple[float, float]:
         centre_x = self.surface_size[0] / 2
         centre_y = self.surface_size[1] / 2
-        iso_x, iso_y = grid_to_screen(self.player.position.x, self.player.position.y)
+        focus = self.player.position
+        if hasattr(self.player, "target_tile") and not getattr(self.player, "is_moving", False):
+            focus = self.player.target_tile
+        iso_x, iso_y = grid_to_screen(focus.x, focus.y)
         return centre_x - iso_x, centre_y - iso_y
 
     # --- Interaction helpers -------------------------------------------------

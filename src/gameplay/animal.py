@@ -37,7 +37,10 @@ class Animal(Entity):
         self.hunger = max(0.0, self.hunger - drain)
 
     def _idle_follow(self, player: "Player", tilemap: TileMap, dt: float) -> None:
-        target = player.position + pygame.Vector2(-1, 0)
+        anchor = player.position
+        if hasattr(player, "target_tile") and not getattr(player, "is_moving", False):
+            anchor = player.target_tile
+        target = pygame.Vector2(anchor) + pygame.Vector2(-1, 0)
         if (target - self.position).length() > 1.8:
             self.move_towards(target, ANIMAL_MOVE_SPEED, dt)
 
