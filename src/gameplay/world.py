@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import List, Optional, Tuple
 
 import pygame
@@ -36,6 +37,7 @@ class World:
         self.campfires: List[pygame.Vector2] = []
         self.camera_offset = (0.0, 0.0)
         self.message: Optional[str] = None
+        self._light_mask_cache: dict[tuple[int, int, int], pygame.Surface] = {}
 
     def set_surface_size(self, size: Tuple[int, int]) -> None:
         self.surface_size = size
@@ -145,17 +147,45 @@ class World:
 
     def _draw_lighting(self, surface: pygame.Surface) -> None:
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        lights: List[Tuple[pygame.Vector2, int]] = []
-        lights.append((self.player.position.copy(), PLAYER_LIGHT_RADIUS))
-        lights.append((self.animal.position.copy(), PLAYER_LIGHT_RADIUS // 2))
+        base_darkness = 210
+        overlay.fill((0, 0, 0, base_darkness))
+        lights: List[Tuple[pygame.Vector2, int, float]] = []
+        lights.append((self.player.position.copy(), PLAYER_LIGHT_RADIUS, 2.4))
+        lights.append((self.animal.position.copy(), PLAYER_LIGHT_RADIUS // 2, 2.0))
         for campfire in self.campfires:
-            lights.append((campfire.copy(), CAMPFIRE_LIGHT_RADIUS))
+            lights.append((campfire.copy(), CAMPFIRE_LIGHT_RADIUS, 1.8))
         offset_x, offset_y = self.camera_offset
-        for position, radius in lights:
+        for position, radius, falloff in lights:
             screen_x, screen_y = grid_to_screen(position.x, position.y, offset_x, offset_y)
-            pygame.draw.circle(overlay, (0, 0, 0, 0), (int(screen_x), int(screen_y)), radius)
+            mask = self._get_light_mask(radius, base_darkness, falloff)
+            mask_rect = mask.get_rect(center=(round(screen_x), round(screen_y)))
+            overlay.blit(mask, mask_rect, special_flags=pygame.BLEND_RGBA_MIN)
         surface.blit(overlay, (0, 0))
+
+    def _get_light_mask(
+        self, radius: int, max_alpha: int, falloff: float
+    ) -> pygame.Surface:
+        key = (radius, max_alpha, int(falloff * 100))
+        cached = self._light_mask_cache.get(key)
+        if cached is not None:
+            return cached
+        diameter = radius * 2
+        mask = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
+        centre = radius
+        mask.lock()
+        for y in range(diameter):
+            dy = y + 0.5 - centre
+            for x in range(diameter):
+                dx = x + 0.5 - centre
+                distance = math.hypot(dx, dy)
+                t = min(1.0, distance / radius) if radius else 1.0
+                alpha = int(max_alpha * (t**falloff))
+                if alpha > max_alpha:
+                    alpha = max_alpha
+                mask.set_at((x, y), (0, 0, 0, alpha))
+        mask.unlock()
+        self._light_mask_cache[key] = mask
+        return mask
 
     # --- Messaging -----------------------------------------------------------
     def consume_message(self) -> Optional[str]:
