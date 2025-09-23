@@ -29,6 +29,23 @@ class Player(Entity):
         self.is_moving = False
 
     def update(self, keys: pygame.key.ScancodeWrapper, tilemap: TileMap, dt: float) -> None:
+        move = pygame.Vector2(0, 0)
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            move.y -= 1
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            move.y += 1
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            move.x -= 1
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            move.x += 1
+
+        if move.length_squared() > 0:
+            move = move.normalize()
+            proposed = self.position + move * PLAYER_MOVE_SPEED * dt
+            tile_x = math.floor(proposed.x)
+            tile_y = math.floor(proposed.y)
+            if tilemap.in_bounds(tile_x, tile_y) and tilemap.is_walkable(tile_x, tile_y):
+                self.position.update(proposed)
         movement_epsilon = 1e-4
         movement_epsilon_sq = movement_epsilon * movement_epsilon
 
@@ -70,6 +87,12 @@ class Player(Entity):
                     self.position += direction
 
         self.is_moving = (self.position - self.target_tile).length_squared() > movement_epsilon_sq
+
+        epsilon = 1e-3
+        max_x = max(0.0, tilemap.width - epsilon)
+        max_y = max(0.0, tilemap.height - epsilon)
+        self.position.x = min(max(self.position.x, 0.0), max_x)
+        self.position.y = min(max(self.position.y, 0.0), max_y)
 
         # Hunger drains slowly over time
         drain = PLAYER_HUNGER_DECAY / 60.0 * dt
