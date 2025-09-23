@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import pygame
@@ -36,23 +37,47 @@ class Animal(Entity):
         drain = ANIMAL_HUNGER_DECAY / 60.0 * dt
         self.hunger = max(0.0, self.hunger - drain)
 
+    def _move_with_collisions(
+        self,
+        target: pygame.Vector2,
+        tilemap: TileMap,
+        speed: float,
+        dt: float,
+    ) -> float:
+        """Move towards *target* while respecting tile collisions."""
+
+        direction = target - self.position
+        distance = direction.length()
+        if distance < 1e-3:
+            if tilemap.is_walkable(math.floor(target.x), math.floor(target.y)):
+                self.position.update(target)
+            return distance
+
+        direction.scale_to_length(min(distance, speed * dt))
+        next_position = self.position + direction
+
+        if tilemap.is_walkable(math.floor(next_position.x), math.floor(next_position.y)):
+            self.position.update(next_position)
+
+        return distance
+
     def _idle_follow(self, player: "Player", tilemap: TileMap, dt: float) -> None:
         anchor = player.position
         if hasattr(player, "target_tile") and not getattr(player, "is_moving", False):
             anchor = player.target_tile
         target = pygame.Vector2(anchor) + pygame.Vector2(-1, 0)
         if (target - self.position).length() > 1.8:
-            self.move_towards(target, ANIMAL_MOVE_SPEED, dt)
+            self._move_with_collisions(target, tilemap, ANIMAL_MOVE_SPEED, dt)
 
     def _process_command(self, world: "World", dt: float) -> bool:
         command_type = self.active_command.get("type")  # type: ignore[assignment]
         if command_type == "goto":
             target = pygame.Vector2(self.active_command["target"])  # type: ignore[index]
-            distance = self.move_towards(target, ANIMAL_MOVE_SPEED, dt)
+            distance = self._move_with_collisions(target, world.tilemap, ANIMAL_MOVE_SPEED, dt)
             return distance <= 0.1
         if command_type == "take":
             target = pygame.Vector2(self.active_command["target"])  # type: ignore[index]
-            distance = self.move_towards(target, ANIMAL_MOVE_SPEED, dt)
+            distance = self._move_with_collisions(target, world.tilemap, ANIMAL_MOVE_SPEED, dt)
             if distance <= 0.2:
                 world.harvest_at(int(target.x), int(target.y), recipient="player")
                 return True
@@ -60,7 +85,7 @@ class Animal(Entity):
         if command_type == "place":
             target = pygame.Vector2(self.active_command["target"])  # type: ignore[index]
             block = str(self.active_command.get("block", "wood_block"))
-            distance = self.move_towards(target, ANIMAL_MOVE_SPEED, dt)
+            distance = self._move_with_collisions(target, world.tilemap, ANIMAL_MOVE_SPEED, dt)
             if distance <= 0.2:
                 world.place_block(int(target.x), int(target.y), block, actor="animal")
                 return True
