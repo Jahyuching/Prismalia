@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Tuple
@@ -39,30 +40,155 @@ class TileMap:
         ]
 
     def generate(self, seed: int | None = None) -> None:
+        if seed is None:
+            seed = random.randrange(0, 2**31)
+
         rng = random.Random(seed)
+        base_dimension = max(1, max(self.width, self.height))
+        height_scale = max(8.0, base_dimension * 0.7)
+        moisture_scale = max(6.0, base_dimension * 0.55)
+        height_seed = seed * 977 + 101
+        moisture_seed = seed * 1373 + 421
+
         for y in range(self.height):
             for x in range(self.width):
-                roll = rng.random()
-                if roll < 0.65:
-                    terrain = "grass"
-                elif roll < 0.78:
-                    terrain = "dirt"
-                elif roll < 0.9:
-                    terrain = "rock"
-                elif roll < 0.97:
-                    terrain = "sand"
-                else:
-                    terrain = "water"
-                walkable = terrain != "water"
-                resource = self._maybe_spawn_resource(rng, terrain)
-                self.tiles[y][x] = Tile(terrain=terrain, walkable=walkable, resource=resource)
+                height_val = self._fractal_noise_2d(
+                    x,
+                    y,
+                    scale=height_scale,
+                    seed=height_seed,
+                    octaves=5,
+                    persistence=0.5,
+                    lacunarity=2.0,
+                )
+                moisture_val = self._fractal_noise_2d(
+                    x,
+                    y,
+                    scale=moisture_scale,
+                    seed=moisture_seed,
+                    octaves=4,
+                    persistence=0.6,
+                    lacunarity=2.1,
+                )
+                terrain, walkable = self._terrain_from_values(height_val, moisture_val)
+                resource = self._maybe_spawn_resource(
+                    rng, terrain, height_val, moisture_val
+                )
+                self.tiles[y][x] = Tile(
+                    terrain=terrain,
+                    walkable=walkable,
+                    resource=resource,
+                )
 
-    def _maybe_spawn_resource(self, rng: random.Random, terrain: str) -> Optional[str]:
-        if terrain in {"grass", "dirt"} and rng.random() < 0.1:
-            return rng.choice(["tree", "bush"])
-        if terrain == "rock" and rng.random() < 0.12:
-            return "rock"
+    def _maybe_spawn_resource(
+        self,
+        rng: random.Random,
+        terrain: str,
+        height: float,
+        moisture: float,
+    ) -> Optional[str]:
+        if terrain == "grass":
+            if moisture > 0.6 and rng.random() < 0.05 + 0.25 * moisture:
+                return "tree"
+            if moisture > 0.45 and rng.random() < 0.08 + 0.12 * moisture:
+                return "bush"
+        elif terrain == "dirt":
+            if moisture > 0.65 and rng.random() < 0.04 + 0.1 * (moisture - 0.65):
+                return "tree"
+            if 0.45 < moisture < 0.7 and rng.random() < 0.06:
+                return "bush"
+        elif terrain == "rock":
+            rock_chance = 0.08 + max(0.0, height - 0.75) * 0.3
+            if rng.random() < min(0.25, rock_chance):
+                return "rock"
         return None
+
+    @staticmethod
+    def _fade(t: float) -> float:
+        return t * t * t * (t * (t * 6 - 15) + 10)
+
+    @staticmethod
+    def _lerp(a: float, b: float, t: float) -> float:
+        return a + t * (b - a)
+
+    @staticmethod
+    def _pseudo_random(x: int, y: int, seed: int) -> float:
+        n = x * 374761393 + y * 668265263 + seed * 1446648777
+        n = (n ^ (n >> 13)) * 1274126177
+        n = n ^ (n >> 16)
+        n &= 0xFFFFFFFF
+        return n / 0xFFFFFFFF
+
+    @classmethod
+    def _value_noise(cls, x: float, y: float, seed: int) -> float:
+        xi = math.floor(x)
+        yi = math.floor(y)
+        xf = x - xi
+        yf = y - yi
+
+        top_left = cls._pseudo_random(xi, yi, seed)
+        top_right = cls._pseudo_random(xi + 1, yi, seed)
+        bottom_left = cls._pseudo_random(xi, yi + 1, seed)
+        bottom_right = cls._pseudo_random(xi + 1, yi + 1, seed)
+
+        u = cls._fade(xf)
+        v = cls._fade(yf)
+
+        top = cls._lerp(top_left, top_right, u)
+        bottom = cls._lerp(bottom_left, bottom_right, u)
+        return cls._lerp(top, bottom, v)
+
+    @classmethod
+    def _fractal_noise_2d(
+        cls,
+        x: float,
+        y: float,
+        *,
+        scale: float,
+        seed: int,
+        octaves: int,
+        persistence: float,
+        lacunarity: float,
+    ) -> float:
+        if scale <= 0:
+            raise ValueError("scale must be positive")
+
+        amplitude = 1.0
+        frequency = 1.0 / scale
+        total = 0.0
+        max_amplitude = 0.0
+
+        for octave in range(octaves):
+            sample_x = x * frequency
+            sample_y = y * frequency
+            total += cls._value_noise(sample_x, sample_y, seed + octave * 1013) * amplitude
+            max_amplitude += amplitude
+            amplitude *= persistence
+            frequency *= lacunarity
+
+        if max_amplitude == 0:
+            return 0.0
+        value = total / max_amplitude
+        return max(0.0, min(1.0, value))
+
+    @staticmethod
+    def _terrain_from_values(height: float, moisture: float) -> Tuple[str, bool]:
+        water_level = 0.32
+        beach_level = 0.37
+        hill_level = 0.68
+        mountain_level = 0.82
+
+        if height < water_level:
+            return "water", False
+        if height < beach_level:
+            return "sand", True
+        if height < hill_level:
+            terrain = "grass" if moisture >= 0.45 else "dirt"
+            return terrain, True
+        if height < mountain_level:
+            terrain = "dirt" if moisture >= 0.5 else "rock"
+            return terrain, True
+        return "rock", True
 
     def get(self, x: int, y: int) -> Tile:
         return self.tiles[y][x]
