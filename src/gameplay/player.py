@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Tuple
 
 import pygame
@@ -35,8 +36,16 @@ class Player(Entity):
         if move.length_squared() > 0:
             move = move.normalize()
             proposed = self.position + move * PLAYER_MOVE_SPEED * dt
-            if tilemap.is_walkable(int(proposed.x), int(proposed.y)):
+            tile_x = math.floor(proposed.x)
+            tile_y = math.floor(proposed.y)
+            if tilemap.in_bounds(tile_x, tile_y) and tilemap.is_walkable(tile_x, tile_y):
                 self.position.update(proposed)
+
+        epsilon = 1e-3
+        max_x = max(0.0, tilemap.width - epsilon)
+        max_y = max(0.0, tilemap.height - epsilon)
+        self.position.x = min(max(self.position.x, 0.0), max_x)
+        self.position.y = min(max(self.position.y, 0.0), max_y)
 
         # Hunger drains slowly over time
         drain = PLAYER_HUNGER_DECAY / 60.0 * dt
